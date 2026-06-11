@@ -1,0 +1,14 @@
+.env
+storage/*
+!storage/raw/
+!storage/excel/
+storage/raw/*
+!storage/raw/.gitkeep
+storage/excel/*
+!storage/excel/.gitkeep
+__pycache__/
+*.pyc
+.pytest_cache/
+logs/
+backup/
+test_sol/output/

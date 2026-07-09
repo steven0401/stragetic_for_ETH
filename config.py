@@ -44,6 +44,18 @@ STORAGE_LIVE = BASE_DIR / "storage" / "live"
 
 # ── Live Trading ──────────────────────────────────────────────────────────────
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
+
+# Automated order execution. Testnet is the default and both environments
+# require an explicit confirmation phrase before any order can be submitted.
+BYBIT_TESTNET = os.getenv("BYBIT_TESTNET", "true").lower() == "true"
+LIVE_TRADING_ENABLED = os.getenv("LIVE_TRADING_ENABLED", "false").lower() == "true"
+LIVE_TRADING_CONFIRM = os.getenv("LIVE_TRADING_CONFIRM", "")
+BYBIT_CATEGORY = "linear"
+BYBIT_POSITION_IDX = 0  # one-way mode
+BYBIT_SETTLE_COIN = "USDT"
+LIVE_MAX_NOTIONAL_PCT = float(os.getenv("LIVE_MAX_NOTIONAL_PCT", "1.0"))
+LIVE_DAILY_INTERVAL_MINUTES = int(os.getenv("LIVE_DAILY_INTERVAL_MINUTES", "15"))
+LIVE_MAX_ACTIVE_PER_SYMBOL = int(os.getenv("LIVE_MAX_ACTIVE_PER_SYMBOL", "1"))
 LIVE_TARGET  = "target_atr"       # must match model training label
 LIVE_SYMBOLS = ["ETHUSDT"]        # BTCUSDT excluded (negative Sharpe in Phase 4.2)
 
@@ -84,6 +96,7 @@ LITERATURE_LONG_DAILY_RISK_PCT = 0.03     # 日K 每筆交易承擔帳戶比例�
 LITERATURE_LONG_DAILY_MAX_CONCURRENT = 6  # 日K 最多同時持倉數；近期掃描較佳區間約 5~7
 LITERATURE_LONG_DAILY_MIN_BULL_SCORE = 1  # 日K 最少多頭確認分數；近期掃描較佳區間約 1~2
 LITERATURE_LONG_DAILY_MAX_RISK_SCORE = 0  # 日K 最高風險分數；0 是最嚴格，要求沒有過熱/轉弱訊號
+LITERATURE_LONG_DAILY_HOLDING_BARS = 24   # 日K 最長持倉 24 根，即 24 天
 
 OVERLAP_HOURS = 3   # overlap candles re-fetched to overwrite unclosed candles from previous run
 OVERLAP_DAYS = 3

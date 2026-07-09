@@ -300,6 +300,39 @@ python run_backtest.py --timeframe 1d
 python run_strategy_backtest.py --strategy eth_literature_long_daily --symbol ETHUSDT --timeframe 1d
 ```
 
+### 雲端實盤 / Testnet 跑策略
+
+先打包 live 必要模型檔：
+
+```powershell
+python package_live_artifacts.py
+```
+
+雲端主機 clone 專案、安裝套件後，把 `live_artifacts.zip` 解壓到專案根目錄，接著設定 `.env`：
+
+```text
+BYBIT_API_KEY=
+BYBIT_API_SECRET=
+DISCORD_WEBHOOK_URL=
+BYBIT_TESTNET=true
+LIVE_TRADING_ENABLED=true
+LIVE_TRADING_CONFIRM=I_UNDERSTAND_TESTNET
+LIVE_MAX_NOTIONAL_PCT=1.0
+LIVE_MAX_ACTIVE_PER_SYMBOL=1
+```
+
+啟動：
+
+```bash
+python run_live_daily_trade.py
+```
+
+完整雲端部署與 systemd 教學見：
+
+```text
+docs/live_cloud_trading.md
+```
+
 ---
 
 ## 專案結構
@@ -312,6 +345,8 @@ stragetic_for_ETH/
 ├── train_models.py
 ├── run_backtest.py
 ├── run_strategy_backtest.py
+├── run_live_daily_trade.py
+├── package_live_artifacts.py
 ├── data/
 ├── features/
 ├── models/
@@ -331,7 +366,10 @@ stragetic_for_ETH/
 | `models/builder.py` | 模型訓練流程 |
 | `strategies/literature_long.py` | 文獻型做多策略 |
 | `run_strategy_backtest.py` | 策略回測入口 |
+| `run_live_daily_trade.py` | 雲端日K實盤/Testnet 入口，會下 Bybit 單並發 Discord 通知 |
+| `package_live_artifacts.py` | 打包雲端 live 必要模型與 validation report |
 | `docs/no_funding_oi_decision_summary.md` | v1/v2 決策摘要 |
+| `docs/live_cloud_trading.md` | 雲端部署、Discord、Testnet/Mainnet 啟動教學 |
 
 ---
 

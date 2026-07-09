@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 HOURLY_LOOKBACK   = 300   # SMA_200 warmup (200) + buffer
 DAILY_LOOKBACK    = 220   # daily_ma_bias_200 warmup (200) + buffer
+DAILY_SIGNAL_LOOKBACK = 300
 MAX_HOURLY_AGE_HR = 1.5   # last closed bar must be < this many hours old
 MAX_DAILY_AGE_HR  = 25    # last closed daily bar must be < this many hours old
 
@@ -46,23 +47,117 @@ def _check_freshness(df: pd.DataFrame, period_hours: float, max_age_hours: float
         )
 
 
-def load_assets(symbol: str, target: str) -> tuple[list[str], list]:
+def _filter_model_features(cols: list[str]) -> list[str]:
+    excluded = set(getattr(config, "MODEL_FEATURE_EXCLUDE_COLUMNS", ()))
+    prefixes = tuple(getattr(config, "MODEL_FEATURE_EXCLUDE_PREFIXES", ()))
+    return [
+        c for c in cols
+        if c not in excluded and not any(c.startswith(prefix) for prefix in prefixes)
+    ]
+
+
+def _asset_name(symbol: str, timeframe: str) -> str:
+    if timeframe == "1h":
+        return symbol
+    if timeframe in {"4h", "1d"}:
+        return f"{symbol}_{timeframe}"
+    raise ValueError(f"Unsupported live timeframe: {timeframe}")
+
+
+def load_assets(symbol: str, target: str, timeframe: str = "1h") -> tuple[list[str], list]:
     """Load feature_cols list and all fold models from storage.
 
     Fold count is derived from glob (not hardcoded), so retraining with a
     different number of folds doesn't silently load a stale subset.
     """
-    report_path = config.STORAGE_FEATURES / f"{symbol}_validation_report.json"
+    asset_name = _asset_name(symbol, timeframe)
+    report_path = config.STORAGE_FEATURES / f"{asset_name}_validation_report.json"
     with open(report_path, encoding="utf-8") as f:
-        feature_cols = json.load(f)["metadata"]["feature_columns"]
+        feature_cols = _filter_model_features(json.load(f)["metadata"]["feature_columns"])
 
-    fold_paths = sorted(config.STORAGE_MODELS.glob(f"{symbol}_{target}_fold*.pkl"))
+    fold_paths = sorted(config.STORAGE_MODELS.glob(f"{asset_name}_{target}_fold*.pkl"))
     if not fold_paths:
         raise FileNotFoundError(
-            f"No fold models found for {symbol}_{target} in {config.STORAGE_MODELS}"
+            f"No fold models found for {asset_name}_{target} in {config.STORAGE_MODELS}"
         )
     fold_models = [joblib.load(p) for p in fold_paths]
     return feature_cols, fold_models
+
+
+def compute_daily_literature_signal(
+    symbol: str,
+    feature_cols: list,
+    fold_models: list,
+    threshold: float,
+    primary_df: pd.DataFrame = None,
+    btc_daily_df: pd.DataFrame = None,
+) -> dict:
+    """
+    Compute the ETH daily literature strategy signal used by live order execution.
+
+    This mirrors the research/live daily setup:
+      model probability >= threshold
+      literature_bull_score >= LITERATURE_LONG_DAILY_MIN_BULL_SCORE
+      literature_long_risk_score <= LITERATURE_LONG_DAILY_MAX_RISK_SCORE
+    """
+    if primary_df is None:
+        primary_df = fetch_latest(symbol, "D", DAILY_SIGNAL_LOOKBACK)
+
+    import time as _time
+    ref_df = None
+    if symbol != "BTCUSDT":
+        if btc_daily_df is None:
+            _time.sleep(0.3)
+            btc_daily_df = fetch_latest("BTCUSDT", "D", DAILY_SIGNAL_LOOKBACK)
+        btc_daily_df = _drop_partial_bars(btc_daily_df, period_hours=24)
+        ref_df = btc_daily_df[["timestamp", "close"]].rename(columns={"close": "ref_close"})
+
+    primary_df = _drop_partial_bars(primary_df, period_hours=24)
+    _check_freshness(primary_df, period_hours=24, max_age_hours=MAX_DAILY_AGE_HR)
+
+    df = indicators.compute(primary_df.copy(), primary_df.copy(), ref_df=ref_df)
+    if symbol == "ETHUSDT" and "cross_ratio" in df.columns:
+        df = df.drop(columns=["cross_ratio"])
+
+    required_cols = feature_cols + [
+        "atr_14",
+        "literature_bull_score",
+        "literature_long_risk_score",
+    ]
+    missing = [c for c in required_cols if c not in df.columns]
+    if missing:
+        raise ValueError(f"[{symbol}] Missing live feature columns: {missing}")
+
+    df = df.replace([np.inf, -np.inf], np.nan).dropna(subset=required_cols)
+    if df.empty:
+        raise ValueError(f"[{symbol}] No valid daily rows after feature computation")
+
+    last_row = df.iloc[[-1]]
+    X = last_row[feature_cols]
+    if not fold_models:
+        raise ValueError(f"[{symbol}] fold_models is empty - no models to ensemble")
+    proba = float(np.mean([m.predict_proba(X)[0, 1] for m in fold_models]))
+
+    bull_score = int(last_row["literature_bull_score"].iloc[0])
+    risk_score = int(last_row["literature_long_risk_score"].iloc[0])
+    raw_model_signal = proba >= threshold
+    passed_filters = (
+        bull_score >= config.LITERATURE_LONG_DAILY_MIN_BULL_SCORE
+        and risk_score <= config.LITERATURE_LONG_DAILY_MAX_RISK_SCORE
+    )
+
+    return {
+        "symbol": symbol,
+        "timestamp": last_row["timestamp"].iloc[0].isoformat(),
+        "close": float(last_row["close"].iloc[0]),
+        "atr_14": float(last_row["atr_14"].iloc[0]),
+        "probability": round(proba, 4),
+        "threshold": threshold,
+        "literature_bull_score": bull_score,
+        "literature_long_risk_score": risk_score,
+        "raw_model_signal": bool(raw_model_signal),
+        "signal": bool(raw_model_signal and passed_filters),
+    }
 
 
 def compute_signal(

@@ -78,9 +78,9 @@ def _reconcile_exchange_positions(trader: BybitTrader, current_state: dict, now:
                 "note": "Position no longer exists on Bybit; likely TP, SL, or manual close.",
             }, ledger_file=TRADE_LEDGER_FILE)
             notifier.send(
-                f"[stragetic_for_ETH] {symbol} position closed on Bybit\n"
-                f"entry:{pos.get('entry_price')} prob:{pos.get('probability')}\n"
-                f"reason: TP/SL/manual close detected by polling"
+                f"[stragetic_for_ETH] {symbol} 倉位已在 Bybit 關閉\n"
+                f"進場價：{pos.get('entry_price')} / 機率：{pos.get('probability')}\n"
+                f"原因：偵測到倉位消失，可能是 TP、SL 或手動平倉"
             )
             continue
 
@@ -100,8 +100,9 @@ def _reconcile_exchange_positions(trader: BybitTrader, current_state: dict, now:
                     "close_order": close_result,
                 }, ledger_file=TRADE_LEDGER_FILE)
                 notifier.send(
-                    f"[stragetic_for_ETH] {symbol} timeout close submitted\n"
-                    f"qty:{qty} entry:{pos.get('entry_price')} exit_time:{pos.get('exit_time')}"
+                    f"[stragetic_for_ETH] {symbol} 到期平倉單已送出\n"
+                    f"數量：{qty} / 進場價：{pos.get('entry_price')}\n"
+                    f"原定到期時間：{pos.get('exit_time')}"
                 )
             continue
 
@@ -163,11 +164,12 @@ def _open_position(
 
     ledger.append_entry({**position, "status": "open_submitted"}, ledger_file=TRADE_LEDGER_FILE)
     notifier.send(
-        f"[stragetic_for_ETH] {symbol} LONG order submitted\n"
-        f"prob:{result['probability']:.4f} threshold:{result['threshold']:.2f}\n"
-        f"qty:{actual_size} entry:{avg_price}\n"
-        f"SL:{float(stop_loss):.4f} TP:{float(take_profit):.4f}\n"
-        f"equity:{equity} USDT exit_by:{exit_time}"
+        f"[stragetic_for_ETH] {symbol} 做多單已送出\n"
+        f"模型機率：{result['probability']:.4f} / 進場門檻：{result['threshold']:.2f}\n"
+        f"數量：{actual_size} / 進場價：{avg_price}\n"
+        f"停損：{float(stop_loss):.4f} / 止盈：{float(take_profit):.4f}\n"
+        f"帳戶權益：{equity} USDT\n"
+        f"最晚出場時間：{exit_time}"
     )
 
     return _replace_positions(
@@ -229,9 +231,10 @@ def heartbeat() -> None:
         exchange_position = trader.get_long_position(symbol)
         if len(tracked_positions) >= config.LIVE_MAX_ACTIVE_PER_SYMBOL or exchange_position is not None:
             notifier.send(
-                f"[stragetic_for_ETH] {symbol} signal skipped\n"
-                f"reason: existing live position detected\n"
-                f"prob:{result['probability']:.4f} timestamp:{result['timestamp']}"
+                f"[stragetic_for_ETH] {symbol} 訊號略過\n"
+                f"原因：偵測到目前已有持倉\n"
+                f"模型機率：{result['probability']:.4f}\n"
+                f"訊號時間：{result['timestamp']}"
             )
             state.save_state(current_state, TRADE_STATE_FILE)
             continue
@@ -252,8 +255,9 @@ def main() -> None:
         config.LIVE_DAILY_INTERVAL_MINUTES,
     )
     notifier.send(
-        f"[stragetic_for_ETH] daily live daemon started\n"
-        f"testnet:{config.BYBIT_TESTNET} threshold:{config.LITERATURE_LONG_DAILY_THRESHOLD}"
+        f"[stragetic_for_ETH] 日K實盤交易程式已啟動\n"
+        f"Testnet：{config.BYBIT_TESTNET}\n"
+        f"進場門檻：{config.LITERATURE_LONG_DAILY_THRESHOLD}"
     )
     heartbeat()
     schedule.every(config.LIVE_DAILY_INTERVAL_MINUTES).minutes.do(heartbeat)

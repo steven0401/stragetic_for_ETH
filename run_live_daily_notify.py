@@ -25,13 +25,13 @@ def _get_assets(symbol: str, target: str, timeframe: str = "1d") -> tuple[list[s
 
 
 def _format_signal_message(result: dict) -> str:
-    status = "ENTRY SIGNAL" if result["signal"] else "NO ENTRY"
+    status = "進場訊號" if result["signal"] else "尚未進場"
     return (
-        f"[stragetic_for_ETH] {result['symbol']} daily signal: {status}\n"
-        f"time:{result['timestamp']}\n"
-        f"close:{result['close']:.4f}\n"
-        f"prob:{result['probability']:.4f} threshold:{result['threshold']:.2f}\n"
-        f"bull:{result['literature_bull_score']} risk:{result['literature_long_risk_score']}"
+        f"[stragetic_for_ETH] {result['symbol']} 日K策略：{status}\n"
+        f"時間：{result['timestamp']}\n"
+        f"收盤價：{result['close']:.4f}\n"
+        f"模型機率：{result['probability']:.4f} / 進場門檻：{result['threshold']:.2f}\n"
+        f"多頭分數：{result['literature_bull_score']} / 風險分數：{result['literature_long_risk_score']}"
     )
 
 
@@ -67,8 +67,8 @@ def main() -> None:
         logger.warning("DISCORD_WEBHOOK_URL not set - Discord notifications disabled")
 
     notifier.send(
-        f"[stragetic_for_ETH] daily notify daemon started\n"
-        f"threshold:{config.LITERATURE_LONG_DAILY_THRESHOLD}"
+        f"[stragetic_for_ETH] 日K策略通知程式已啟動\n"
+        f"進場門檻：{config.LITERATURE_LONG_DAILY_THRESHOLD}"
     )
     heartbeat()
     schedule.every(config.LIVE_DAILY_INTERVAL_MINUTES).minutes.do(heartbeat)

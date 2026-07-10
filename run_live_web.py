@@ -54,12 +54,12 @@ def _load_status() -> dict[str, Any]:
 
 
 def _html() -> bytes:
-    return b"""<!doctype html>
+    return """<!doctype html>
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ETH Strategy Monitor</title>
+  <title>ETH 策略監控</title>
   <style>
     :root {
       color-scheme: dark;
@@ -130,36 +130,36 @@ def _html() -> bytes:
 </head>
 <body>
   <header>
-    <h1>ETH Strategy Monitor</h1>
+    <h1>ETH 策略監控</h1>
     <div class="status" id="refreshStatus">loading...</div>
   </header>
   <main>
     <section class="grid metrics">
-      <div class="panel metric"><div class="label">Equity</div><div class="value" id="equity">-</div><div class="sub" id="env">-</div></div>
-      <div class="panel metric"><div class="label">Latest Prob</div><div class="value" id="prob">-</div><div class="sub" id="threshold">-</div></div>
-      <div class="panel metric"><div class="label">Signal</div><div class="value" id="signal">-</div><div class="sub" id="signalTime">-</div></div>
-      <div class="panel metric"><div class="label">Active Positions</div><div class="value" id="positions">-</div><div class="sub" id="maxActive">-</div></div>
-      <div class="panel metric"><div class="label">Close</div><div class="value" id="close">-</div><div class="sub" id="scores">-</div></div>
+      <div class="panel metric"><div class="label">帳戶權益</div><div class="value" id="equity">-</div><div class="sub" id="env">-</div></div>
+      <div class="panel metric"><div class="label">最新模型機率</div><div class="value" id="prob">-</div><div class="sub" id="threshold">-</div></div>
+      <div class="panel metric"><div class="label">策略訊號</div><div class="value" id="signal">-</div><div class="sub" id="signalTime">-</div></div>
+      <div class="panel metric"><div class="label">目前持倉</div><div class="value" id="positions">-</div><div class="sub" id="maxActive">-</div></div>
+      <div class="panel metric"><div class="label">最新收盤價</div><div class="value" id="close">-</div><div class="sub" id="scores">-</div></div>
     </section>
 
     <section class="grid two">
       <div class="panel">
-        <h2>Equity Curve</h2>
-        <div class="chart-wrap"><svg id="equityChart" role="img" aria-label="equity curve"></svg></div>
+        <h2>資金曲線</h2>
+        <div class="chart-wrap"><svg id="equityChart" role="img" aria-label="資金曲線"></svg></div>
       </div>
       <div class="panel">
-        <h2>Current Positions</h2>
+        <h2>目前持倉</h2>
         <div class="table-wrap"><table id="positionTable"></table></div>
       </div>
     </section>
 
     <section class="grid two section">
       <div class="panel">
-        <h2>Daily Signal History</h2>
+        <h2>日K訊號紀錄</h2>
         <div class="table-wrap"><table id="signalTable"></table></div>
       </div>
       <div class="panel">
-        <h2>Trade Ledger</h2>
+        <h2>交易紀錄</h2>
         <div class="table-wrap"><table id="ledgerTable"></table></div>
       </div>
     </section>
@@ -211,52 +211,52 @@ def _html() -> bytes:
       document.getElementById("equity").textContent = "$" + money(data.latest_equity);
       document.getElementById("env").textContent = settings.testnet ? "Testnet" : "Mainnet";
       document.getElementById("prob").textContent = s.probability !== undefined ? num(s.probability) : "-";
-      document.getElementById("threshold").textContent = "threshold " + text(settings.threshold);
-      document.getElementById("signal").innerHTML = s.signal === true || s.signal === "True" ? '<span class="pill ok">ENTRY</span>' : '<span class="pill warn">WAIT</span>';
+      document.getElementById("threshold").textContent = "進場門檻 " + text(settings.threshold);
+      document.getElementById("signal").innerHTML = s.signal === true || s.signal === "True" ? '<span class="pill ok">進場</span>' : '<span class="pill warn">等待</span>';
       document.getElementById("signalTime").textContent = text(s.timestamp);
       document.getElementById("positions").textContent = data.position_count || 0;
-      document.getElementById("maxActive").textContent = "max per symbol " + text(settings.max_active_per_symbol);
+      document.getElementById("maxActive").textContent = "單幣最多持倉 " + text(settings.max_active_per_symbol);
       document.getElementById("close").textContent = s.close !== undefined ? money(s.close) : "-";
-      document.getElementById("scores").textContent = "bull " + text(s.bull_score) + " / risk " + text(s.risk_score);
-      document.getElementById("refreshStatus").textContent = "updated " + new Date().toLocaleTimeString();
+      document.getElementById("scores").textContent = "多頭分數 " + text(s.bull_score) + " / 風險分數 " + text(s.risk_score);
+      document.getElementById("refreshStatus").textContent = "更新時間 " + new Date().toLocaleTimeString();
 
       drawLine(document.getElementById("equityChart"), data.equity_curve || [], "#65a9ff");
 
       table(document.getElementById("positionTable"), [
-        {label:"Symbol", key:"symbol"},
-        {label:"Qty", key:"qty"},
-        {label:"Entry", key:"entry_price"},
-        {label:"SL", key:"sl_price"},
-        {label:"TP", key:"tp_price"},
-        {label:"Exit By", key:"exit_time"}
-      ], data.active_positions || [], "No active positions");
+        {label:"幣種", key:"symbol"},
+        {label:"數量", key:"qty"},
+        {label:"進場價", key:"entry_price"},
+        {label:"停損", key:"sl_price"},
+        {label:"止盈", key:"tp_price"},
+        {label:"最晚出場", key:"exit_time"}
+      ], data.active_positions || [], "目前沒有持倉");
 
       const signals = (data.signals || []).slice().reverse();
       table(document.getElementById("signalTable"), [
-        {label:"Time", key:"timestamp"},
-        {label:"Symbol", key:"symbol"},
-        {label:"Prob", render:r=>num(r.probability)},
-        {label:"Signal", render:r=>String(r.signal).toLowerCase()==="true" ? '<span class="pill ok">YES</span>' : '<span class="pill warn">NO</span>'},
-        {label:"Close", render:r=>money(r.close)},
-        {label:"Bull", key:"bull_score"},
-        {label:"Risk", key:"risk_score"}
-      ], signals, "No signal history yet");
+        {label:"時間", key:"timestamp"},
+        {label:"幣種", key:"symbol"},
+        {label:"機率", render:r=>num(r.probability)},
+        {label:"訊號", render:r=>String(r.signal).toLowerCase()==="true" ? '<span class="pill ok">進場</span>' : '<span class="pill warn">等待</span>'},
+        {label:"收盤價", render:r=>money(r.close)},
+        {label:"多頭分數", key:"bull_score"},
+        {label:"風險分數", key:"risk_score"}
+      ], signals, "還沒有訊號紀錄");
 
       const ledger = (data.ledger || []).slice().reverse();
       table(document.getElementById("ledgerTable"), [
-        {label:"Status", key:"status"},
-        {label:"Symbol", key:"symbol"},
-        {label:"Entry", key:"entry_price"},
-        {label:"Qty", key:"qty"},
-        {label:"Time", render:r=>text(r.entry_time || r.exit_time_actual)}
-      ], ledger, "No trade ledger yet");
+        {label:"狀態", key:"status"},
+        {label:"幣種", key:"symbol"},
+        {label:"進場價", key:"entry_price"},
+        {label:"數量", key:"qty"},
+        {label:"時間", render:r=>text(r.entry_time || r.exit_time_actual)}
+      ], ledger, "還沒有交易紀錄");
     }
 
     load();
     setInterval(load, 60000);
   </script>
 </body>
-</html>"""
+</html>""".encode("utf-8")
 
 
 class Handler(BaseHTTPRequestHandler):

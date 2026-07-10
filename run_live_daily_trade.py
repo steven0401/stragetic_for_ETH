@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import csv
 import logging
 import time
 from decimal import Decimal
@@ -10,7 +9,7 @@ import pandas as pd
 import schedule
 
 import config
-from live import ledger, notifier, pipeline, state
+from live import ledger, monitoring, notifier, pipeline, state
 from live.bybit_trader import BybitTrader, _decimal
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -19,8 +18,6 @@ logger = logging.getLogger(__name__)
 DISABLE_FLAG = config.BASE_DIR / ".disabled"
 TRADE_STATE_FILE = config.STORAGE_LIVE / "bybit_active_positions.json"
 TRADE_LEDGER_FILE = config.STORAGE_LIVE / "bybit_trade_ledger.json"
-PROB_CSV = config.STORAGE_LIVE / "daily_trade_prob_history.csv"
-
 _assets_cache: dict[str, tuple[list[str], list]] = {}
 
 
@@ -56,34 +53,6 @@ def _sl_tp(close: float, atr_14: float) -> tuple[Decimal, Decimal]:
 def _order_link_id(prefix: str, symbol: str, now: pd.Timestamp) -> str:
     compact = now.strftime("%Y%m%d%H%M%S")
     return f"{prefix}-{symbol[:3].lower()}-{compact}"
-
-
-def _record_prob(result: dict) -> None:
-    PROB_CSV.parent.mkdir(parents=True, exist_ok=True)
-    write_header = not PROB_CSV.exists()
-    with open(PROB_CSV, "a", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        if write_header:
-            writer.writerow([
-                "timestamp",
-                "symbol",
-                "probability",
-                "threshold",
-                "signal",
-                "close",
-                "bull_score",
-                "risk_score",
-            ])
-        writer.writerow([
-            result["timestamp"],
-            result["symbol"],
-            result["probability"],
-            result["threshold"],
-            result["signal"],
-            result["close"],
-            result["literature_bull_score"],
-            result["literature_long_risk_score"],
-        ])
 
 
 def _positions_for_symbol(current_state: dict, symbol: str) -> list[dict]:
@@ -212,6 +181,11 @@ def heartbeat() -> None:
     logger.info("[heartbeat] %s", now.isoformat())
 
     trader = BybitTrader()
+    try:
+        monitoring.append_equity_snapshot(now, trader.get_usdt_equity(), "bybit_wallet")
+    except Exception as exc:
+        logger.warning("Equity snapshot failed: %s", exc)
+
     current_state = state.load_state(TRADE_STATE_FILE)
     current_state.setdefault("positions", [])
     current_state = _reconcile_exchange_positions(trader, current_state, now)
@@ -230,7 +204,7 @@ def heartbeat() -> None:
             fold_models=fold_models,
             threshold=config.LITERATURE_LONG_DAILY_THRESHOLD,
         )
-        _record_prob(result)
+        monitoring.append_daily_signal(result)
         logger.info(
             "[%s] prob=%.4f signal=%s bull=%s risk=%s",
             symbol,

@@ -56,6 +56,10 @@ BYBIT_SETTLE_COIN = "USDT"
 LIVE_MAX_NOTIONAL_PCT = float(os.getenv("LIVE_MAX_NOTIONAL_PCT", "1.0"))
 LIVE_DAILY_INTERVAL_MINUTES = int(os.getenv("LIVE_DAILY_INTERVAL_MINUTES", "15"))
 LIVE_MAX_ACTIVE_PER_SYMBOL = int(os.getenv("LIVE_MAX_ACTIVE_PER_SYMBOL", "1"))
+DASHBOARD_HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
+DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "8000"))
+DASHBOARD_USERNAME = os.getenv("DASHBOARD_USERNAME", "")
+DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "")
 LIVE_TARGET  = "target_atr"       # must match model training label
 LIVE_SYMBOLS = ["ETHUSDT"]        # BTCUSDT excluded (negative Sharpe in Phase 4.2)
 

@@ -327,6 +327,18 @@ LIVE_MAX_ACTIVE_PER_SYMBOL=1
 python run_live_daily_trade.py
 ```
 
+如果 Testnet 暫時沒有測試幣，可以先跑只通知不下單的版本：
+
+```bash
+python run_live_daily_notify.py
+```
+
+監控網頁：
+
+```bash
+python run_live_web.py
+```
+
 完整雲端部署與 systemd 教學見：
 
 ```text
@@ -346,6 +358,8 @@ stragetic_for_ETH/
 ├── run_backtest.py
 ├── run_strategy_backtest.py
 ├── run_live_daily_trade.py
+├── run_live_daily_notify.py
+├── run_live_web.py
 ├── package_live_artifacts.py
 ├── data/
 ├── features/
@@ -367,6 +381,8 @@ stragetic_for_ETH/
 | `strategies/literature_long.py` | 文獻型做多策略 |
 | `run_strategy_backtest.py` | 策略回測入口 |
 | `run_live_daily_trade.py` | 雲端日K實盤/Testnet 入口，會下 Bybit 單並發 Discord 通知 |
+| `run_live_daily_notify.py` | 不下單的日K Discord 訊號通知入口 |
+| `run_live_web.py` | 雲端監控網頁，顯示資金曲線、訊號、持倉、ledger |
 | `package_live_artifacts.py` | 打包雲端 live 必要模型與 validation report |
 | `docs/no_funding_oi_decision_summary.md` | v1/v2 決策摘要 |
 | `docs/live_cloud_trading.md` | 雲端部署、Discord、Testnet/Mainnet 啟動教學 |

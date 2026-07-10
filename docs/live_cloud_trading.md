@@ -125,6 +125,62 @@ source .venv/bin/activate
 python run_live_daily_trade.py
 ```
 
+If Testnet has no USDT yet, run the notification-only daemon first:
+
+```bash
+source .venv/bin/activate
+python run_live_daily_notify.py
+```
+
+This does not place orders. It loads the daily model, computes the signal, writes
+`storage/live/daily_trade_prob_history.csv`, and sends the latest daily signal
+to Discord once per closed daily candle.
+
+## Monitoring Web Page
+
+Start the dashboard:
+
+```bash
+source .venv/bin/activate
+python run_live_web.py
+```
+
+Default address:
+
+```text
+http://127.0.0.1:8000
+```
+
+Recommended access from your Windows machine is an SSH tunnel:
+
+```powershell
+ssh -i "C:\Users\steven0401\.ssh\oracle_new.key" -L 8000:127.0.0.1:8000 ubuntu@151.145.78.194
+```
+
+Then open this on Windows:
+
+```text
+http://127.0.0.1:8000
+```
+
+The page reads:
+
+```text
+storage/live/daily_trade_prob_history.csv
+storage/live/equity_history.csv
+storage/live/bybit_active_positions.json
+storage/live/bybit_trade_ledger.json
+```
+
+If you decide to expose it publicly, set a password first:
+
+```env
+DASHBOARD_HOST=0.0.0.0
+DASHBOARD_PORT=8000
+DASHBOARD_USERNAME=your_name
+DASHBOARD_PASSWORD=strong_password
+```
+
 ## Run With systemd
 
 Create a service:
@@ -165,6 +221,46 @@ Check logs:
 
 ```bash
 sudo journalctl -u eth-strategy -f
+```
+
+Optional notification-only service:
+
+```ini
+[Unit]
+Description=ETH daily strategy Discord notifier
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/stragetic_for_ETH
+ExecStart=/home/ubuntu/stragetic_for_ETH/.venv/bin/python run_live_daily_notify.py
+Restart=always
+RestartSec=15
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Optional dashboard service:
+
+```ini
+[Unit]
+Description=ETH strategy dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/stragetic_for_ETH
+ExecStart=/home/ubuntu/stragetic_for_ETH/.venv/bin/python run_live_web.py
+Restart=always
+RestartSec=15
+
+[Install]
+WantedBy=multi-user.target
 ```
 
 ## Discord Notifications

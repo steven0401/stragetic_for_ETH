@@ -28,6 +28,12 @@ timeout = 24 daily bars
 The live runner checks every `LIVE_DAILY_INTERVAL_MINUTES`, but each closed
 daily candle is processed only once.
 
+Default check interval:
+
+```env
+LIVE_DAILY_INTERVAL_MINUTES=60
+```
+
 ## Safety Defaults
 
 Execution is locked unless all three are true:
@@ -116,6 +122,7 @@ LIVE_TRADING_ENABLED=true
 LIVE_TRADING_CONFIRM=I_UNDERSTAND_TESTNET
 LIVE_MAX_NOTIONAL_PCT=1.0
 LIVE_MAX_ACTIVE_PER_SYMBOL=1
+LIVE_DAILY_INTERVAL_MINUTES=60
 ```
 
 Start manually:

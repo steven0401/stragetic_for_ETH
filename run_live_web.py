@@ -40,7 +40,7 @@ def _load_status() -> dict[str, Any]:
         "latest_equity": latest_equity,
         "active_positions": positions,
         "position_count": len(positions),
-        "signals": signals[-80:],
+        "signals": signals[-20:],
         "equity_curve": equity_curve[-300:],
         "ledger": ledger[-80:] if isinstance(ledger, list) else [],
         "settings": {
@@ -213,7 +213,7 @@ def _html() -> bytes:
       document.getElementById("prob").textContent = s.probability !== undefined ? num(s.probability) : "-";
       document.getElementById("threshold").textContent = "進場門檻 " + text(settings.threshold);
       document.getElementById("signal").innerHTML = s.signal === true || s.signal === "True" ? '<span class="pill ok">進場</span>' : '<span class="pill warn">等待</span>';
-      document.getElementById("signalTime").textContent = text(s.timestamp);
+      document.getElementById("signalTime").textContent = "偵測時間 " + text(s.checked_at || s.timestamp);
       document.getElementById("positions").textContent = data.position_count || 0;
       document.getElementById("maxActive").textContent = "單幣最多持倉 " + text(settings.max_active_per_symbol);
       document.getElementById("close").textContent = s.close !== undefined ? money(s.close) : "-";
@@ -233,7 +233,8 @@ def _html() -> bytes:
 
       const signals = (data.signals || []).slice().reverse();
       table(document.getElementById("signalTable"), [
-        {label:"時間", key:"timestamp"},
+        {label:"偵測時間", render:r=>text(r.checked_at || r.timestamp)},
+        {label:"K線時間", key:"timestamp"},
         {label:"幣種", key:"symbol"},
         {label:"機率", render:r=>num(r.probability)},
         {label:"訊號", render:r=>String(r.signal).toLowerCase()==="true" ? '<span class="pill ok">進場</span>' : '<span class="pill warn">等待</span>'},

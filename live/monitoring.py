@@ -15,13 +15,37 @@ TRADE_LEDGER_FILE = config.STORAGE_LIVE / "bybit_trade_ledger.json"
 TRADE_STATE_FILE = config.STORAGE_LIVE / "bybit_active_positions.json"
 
 
+def _ensure_signal_schema(csv_path: Path) -> None:
+    if not csv_path.exists():
+        return
+
+    with open(csv_path, newline="", encoding="utf-8") as f:
+        rows = list(csv.reader(f))
+    if not rows or not rows[0] or rows[0][0] == "checked_at":
+        return
+
+    rows[0] = ["checked_at", *rows[0]]
+    upgraded = []
+    for row in rows[1:]:
+        checked_at = row[0] if row else ""
+        upgraded.append([checked_at, *row])
+
+    with open(csv_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(rows[0])
+        writer.writerows(upgraded)
+
+
 def append_daily_signal(result: dict[str, Any], csv_path: Path = DAILY_SIGNAL_CSV) -> None:
     csv_path.parent.mkdir(parents=True, exist_ok=True)
+    _ensure_signal_schema(csv_path)
     write_header = not csv_path.exists()
+    checked_at = pd.Timestamp.now("UTC").isoformat()
     with open(csv_path, "a", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         if write_header:
             writer.writerow([
+                "checked_at",
                 "timestamp",
                 "symbol",
                 "probability",
@@ -32,6 +56,7 @@ def append_daily_signal(result: dict[str, Any], csv_path: Path = DAILY_SIGNAL_CS
                 "risk_score",
             ])
         writer.writerow([
+            checked_at,
             result["timestamp"],
             result["symbol"],
             result["probability"],

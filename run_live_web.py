@@ -168,6 +168,20 @@ def _html() -> bytes:
     const money = n => Number(n || 0).toLocaleString(undefined, {maximumFractionDigits: 2});
     const num = n => Number(n || 0).toFixed(4);
     const text = v => (v === undefined || v === null || v === "") ? "-" : String(v);
+    const timeText = v => {
+      if (v === undefined || v === null || v === "") return "-";
+      const d = new Date(String(v));
+      if (Number.isNaN(d.getTime())) return String(v);
+      return new Intl.DateTimeFormat("zh-TW", {
+        timeZone: "Asia/Taipei",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false
+      }).format(d);
+    };
 
     function drawLine(svg, points, color) {
       svg.innerHTML = "";
@@ -213,7 +227,7 @@ def _html() -> bytes:
       document.getElementById("prob").textContent = s.probability !== undefined ? num(s.probability) : "-";
       document.getElementById("threshold").textContent = "進場門檻 " + text(settings.threshold);
       document.getElementById("signal").innerHTML = s.signal === true || s.signal === "True" ? '<span class="pill ok">進場</span>' : '<span class="pill warn">等待</span>';
-      document.getElementById("signalTime").textContent = "偵測時間 " + text(s.checked_at || s.timestamp);
+      document.getElementById("signalTime").textContent = "偵測時間 " + timeText(s.checked_at || s.timestamp);
       document.getElementById("positions").textContent = data.position_count || 0;
       document.getElementById("maxActive").textContent = "單幣最多持倉 " + text(settings.max_active_per_symbol);
       document.getElementById("close").textContent = s.close !== undefined ? money(s.close) : "-";
@@ -233,8 +247,8 @@ def _html() -> bytes:
 
       const signals = (data.signals || []).slice().reverse();
       table(document.getElementById("signalTable"), [
-        {label:"偵測時間", render:r=>text(r.checked_at || r.timestamp)},
-        {label:"K線時間", key:"timestamp"},
+        {label:"偵測時間", render:r=>timeText(r.checked_at || r.timestamp)},
+        {label:"K線時間", render:r=>timeText(r.timestamp)},
         {label:"幣種", key:"symbol"},
         {label:"機率", render:r=>num(r.probability)},
         {label:"訊號", render:r=>String(r.signal).toLowerCase()==="true" ? '<span class="pill ok">進場</span>' : '<span class="pill warn">等待</span>'},
@@ -249,7 +263,7 @@ def _html() -> bytes:
         {label:"幣種", key:"symbol"},
         {label:"進場價", key:"entry_price"},
         {label:"數量", key:"qty"},
-        {label:"時間", render:r=>text(r.entry_time || r.exit_time_actual)}
+        {label:"時間", render:r=>timeText(r.entry_time || r.exit_time_actual)}
       ], ledger, "還沒有交易紀錄");
     }
 

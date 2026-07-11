@@ -55,6 +55,34 @@ def _order_link_id(prefix: str, symbol: str, now: pd.Timestamp) -> str:
     return f"{prefix}-{symbol[:3].lower()}-{compact}"
 
 
+def _taipei_minute(ts: pd.Timestamp) -> str:
+    if ts.tzinfo is None:
+        ts = ts.tz_localize("UTC")
+    return ts.tz_convert("Asia/Taipei").strftime("%Y/%m/%d %H:%M")
+
+
+def _status_message(
+    symbol: str,
+    result: dict,
+    now: pd.Timestamp,
+    equity: Decimal | None,
+    current_state: dict,
+) -> str:
+    status = "進場訊號" if result["signal"] else "尚未進場"
+    equity_text = f"{equity} USDT" if equity is not None else "讀取失敗"
+    active_count = len(_positions_for_symbol(current_state, symbol))
+    return (
+        f"[stragetic_for_ETH] 例行檢查\n"
+        f"偵測時間：{_taipei_minute(now)}\n"
+        f"幣種：{symbol}\n"
+        f"模型機率：{result['probability']:.4f} / 進場門檻：{result['threshold']:.2f}\n"
+        f"訊號：{status}\n"
+        f"多頭分數：{result['literature_bull_score']} / 風險分數：{result['literature_long_risk_score']}\n"
+        f"目前持倉：{active_count}\n"
+        f"帳戶權益：{equity_text}"
+    )
+
+
 def _positions_for_symbol(current_state: dict, symbol: str) -> list[dict]:
     return [p for p in current_state.get("positions", []) if p.get("symbol") == symbol]
 
@@ -183,8 +211,10 @@ def heartbeat() -> None:
     logger.info("[heartbeat] %s", now.isoformat())
 
     trader = BybitTrader()
+    equity = None
     try:
-        monitoring.append_equity_snapshot(now, trader.get_usdt_equity(), "bybit_wallet")
+        equity = trader.get_usdt_equity()
+        monitoring.append_equity_snapshot(now, equity, "bybit_wallet")
     except Exception as exc:
         logger.warning("Equity snapshot failed: %s", exc)
 
@@ -207,6 +237,7 @@ def heartbeat() -> None:
             threshold=config.LITERATURE_LONG_DAILY_THRESHOLD,
         )
         monitoring.append_daily_signal(result)
+        notifier.send(_status_message(symbol, result, now, equity, current_state))
         logger.info(
             "[%s] prob=%.4f signal=%s bull=%s risk=%s",
             symbol,
